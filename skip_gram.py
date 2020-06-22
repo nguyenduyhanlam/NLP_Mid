@@ -101,10 +101,10 @@ def d_sigmoid(x):
 w_input = np.random.rand(vocabulary.n_words + K, window_size * 2 + 1)
 w_output = np.random.rand(vocabulary.n_words + K, window_size * 2 + 1)
 
-learning_rate = 0.001
+learning_rate = 1 * 10 ** (-5)
 for sentence in data:
     for index,word in enumerate(sentence):
-        
+        # Create context window for current center word
         cw = CreateContextWindow(sentence, index, window_size)
         
         for i,c in enumerate(cw):
@@ -124,19 +124,92 @@ for sentence in data:
             
             # Backward
             idx = vocabulary.word2index[c]
-            d_out_pos = sigmoid(output_set[idx] @ h.T) - 1
-            d_out_neg = sigmoid(output_set[vocabulary.n_words : vocabulary.n_words + K] @ h.T)
+            d_out_pos = output_set[idx] - 1
+            d_out_neg = output_set[vocabulary.n_words : vocabulary.n_words + K]
             
-            dw_output_pos = d_out_pos * h
-            dw_output_neg = d_out_neg @ h
+            dw_output_pos = d_out_pos @ h.T
+            dw_output_neg = d_out_neg @ h.T
             
             dh_pos = d_out_pos * w_output[idx]
-            d_out_neg = np.reshape(d_out_neg, (K, 1))
-            dh_neg = w_output[vocabulary.n_words : vocabulary.n_words + K].T @ d_out_neg
+            dw_input_pos = dh_pos
+            for i in range(K):
+                dh_neg = d_out_neg[i] * w_output[vocabulary.n_words + i]
+                dw_input_neg = dh_neg
+                
+                # Update w_input neg
+                w_input[vocabulary.n_words + i] = w_input[vocabulary.n_words + i] - learning_rate * dw_input_neg
             
-            # Update
+            # Update w_output pos, neg
             w_output[idx] = w_output[idx] - learning_rate * dw_output_pos
             w_output[vocabulary.n_words : vocabulary.n_words + K] = w_output[vocabulary.n_words : vocabulary.n_words + K] - learning_rate * dw_output_neg
             
-            w_input[idx] = w_input[idx] - learning_rate * dh_pos
-            w_input[vocabulary.n_words : vocabulary.n_words + K] = w_input[vocabulary.n_words : vocabulary.n_words + K] - learning_rate * dh_neg
+            # Update w_output pos
+            w_input[idx] = w_input[idx] - learning_rate * dw_input_pos
+
+def CreateEvaluateData(corpus):
+    data = []
+    track_filling = []
+    for sent in corpus:
+        data.append(sent.split())
+        tf = []
+        for position, w in enumerate(sent.split()):
+            if w == '___':
+                tf.append(['', 0, position])
+        track_filling.append(tf)
+    return data, track_filling
+           
+def evaluate(corpus):
+    # Create data for evaluating process
+    data, tf = CreateEvaluateData(corpus)
+    
+    for si, sentence in enumerate(data):
+        # Get current tracking filling array
+        c_tf = tf[si]
+        
+        for index,word in enumerate(sentence):
+            # If current center word is '___' -> continue
+            if word == '___':
+                continue
+            
+            # Create context window for current center word
+            cw = CreateContextWindow(sentence, index, window_size)
+            
+            # if current window doesn't contain '___' -> continue
+            if '___' not in cw:
+                continue
+            
+            for i,c in enumerate(cw):
+            
+                # if c (c_pos) is word (center_word) -> continue
+                #    c (c_pos) is '___'
+                if c == word or c != '___':
+                    continue
+                
+                # Get neg_samplings
+                wneg = np.random.choice(list(vocabulary.word2prob.keys()), size=K, p=list(vocabulary.word2prob.values()))
+            
+                # Forward
+                input_set = CreateInput(word)
+                h =  w_input.T @ input_set
+                output_set = w_output @ h
+                output_set = sigmoid(output_set)
+                
+                max_p = max(output_set)
+                max_index = np.argmax(output_set)
+                
+                if c == '___':
+                    curr_pos_in_sent = i - index
+                    curr_pos_in_sent = index + curr_pos_in_sent
+                    for e in c_tf:
+                        if e[2] == curr_pos_in_sent:
+                            if max_p > e[1]:
+                                e[0] = vocabulary.index2word[max_index]
+                                e[1] = max_p
+                                break
+    
+    return tf
+                
+corpus = []
+corpus.append('công ___ như ___ thái sơn')
+corpus.append('nghĩa ___ như ___ trong ___ chảy ra')
+tf = evaluate(corpus)
