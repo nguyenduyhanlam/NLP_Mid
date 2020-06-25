@@ -11,11 +11,12 @@ from gensim.models import Word2Vec
 import multiprocessing
 import re
 import numpy as np
+from itertools import permutations
 
 # Normalize the string (marks and words are seperated, lower the word,...)
 def normalizeString(s):
     # Seperate words and marks by adding spaces between them
-    marks = '[.!?,-${}()\":\\;/]'
+    marks = '[.!?,-${}()\":\\;/%]'
     r = "(["+"\\".join(marks)+"])"
     s = re.sub(r, r" \1 ", s)
     # replace continuous spaces with a single space
@@ -101,7 +102,7 @@ def d_sigmoid(x):
 w_input = np.random.rand(vocabulary.n_words + K, window_size * 2 + 1)
 w_output = np.random.rand(vocabulary.n_words + K, window_size * 2 + 1)
 
-learning_rate = 1 * 10 ** (-5)
+learning_rate = 1 * 10 ** (-3)
 for sentence in data:
     for index,word in enumerate(sentence):
         # Create context window for current center word
@@ -154,62 +155,19 @@ def CreateEvaluateData(corpus):
         tf = []
         for position, w in enumerate(sent.split()):
             if w == '___':
-                tf.append(['', 0, position])
+                tf.append(['', '', 0, position])
         track_filling.append(tf)
     return data, track_filling
-           
-def evaluate(corpus):
-    # Create data for evaluating process
-    data, tf = CreateEvaluateData(corpus)
-    
-    for si, sentence in enumerate(data):
-        # Get current tracking filling array
-        c_tf = tf[si]
-        
-        for index,word in enumerate(sentence):
-            # If current center word is '___' -> continue
-            if word == '___':
-                continue
-            
-            # Create context window for current center word
-            cw = CreateContextWindow(sentence, index, window_size)
-            
-            # if current window doesn't contain '___' -> continue
-            if '___' not in cw:
-                continue
-            
-            for i,c in enumerate(cw):
-            
-                # if c (c_pos) is word (center_word) -> continue
-                #    c (c_pos) is '___'
-                if c == word or c != '___':
-                    continue
-                
-                # Get neg_samplings
-                wneg = np.random.choice(list(vocabulary.word2prob.keys()), size=K, p=list(vocabulary.word2prob.values()))
-            
-                # Forward
-                input_set = CreateInput(word)
-                h =  w_input.T @ input_set
-                output_set = w_output @ h
-                output_set = sigmoid(output_set)
-                
-                max_p = max(output_set)
-                max_index = np.argmax(output_set)
-                
-                if c == '___':
-                    curr_pos_in_sent = i - index
-                    curr_pos_in_sent = index + curr_pos_in_sent
-                    for e in c_tf:
-                        if e[2] == curr_pos_in_sent:
-                            if max_p > e[1]:
-                                e[0] = vocabulary.index2word[max_index]
-                                e[1] = max_p
-                                break
-    
-    return tf
-                
-corpus = []
-corpus.append('công ___ như ___ thái sơn')
-corpus.append('nghĩa ___ như ___ trong ___ chảy ra')
-tf = evaluate(corpus)
+
+def CreatePredictionPair(corpus):
+    return 0
+
+def Embedding(word):
+    input_set = CreateInput(word)
+    h =  w_input.T @ input_set
+    output_set = w_output @ h
+    output_set = sigmoid(output_set)
+    return output_set
+
+test_embedding = Embedding('mẹ')
+print(test_embedding)
