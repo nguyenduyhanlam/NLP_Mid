@@ -147,27 +147,36 @@ for sentence in data:
             # Update w_output pos
             w_input[idx] = w_input[idx] - learning_rate * dw_input_pos
 
-def CreateEvaluateData(corpus):
-    data = []
-    track_filling = []
-    for sent in corpus:
-        data.append(sent.split())
-        tf = []
-        for position, w in enumerate(sent.split()):
-            if w == '___':
-                tf.append(['', '', 0, position])
-        track_filling.append(tf)
-    return data, track_filling
-
-def CreatePredictionPair(corpus):
-    return 0
-
-def Embedding(word):
+embedding_size = vocabulary.n_words + K
+def Embed(word):
     input_set = CreateInput(word)
     h =  w_input.T @ input_set
     output_set = w_output @ h
     output_set = sigmoid(output_set)
-    return output_set
+    return np.reshape(output_set, (embedding_size, 1))
 
-test_embedding = Embedding('mẹ')
+test_embedding = Embed('mẹ')
 print(test_embedding)
+
+def consineSimilarity(vector1, vector2):
+    return np.dot(vector1.T, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2))
+
+def SimilarWith(word):
+  result = []
+  word1 = word
+  vec1 = Embed(word1)
+  for item in vocabulary.word2index.items():
+    if item[0] == word:
+      continue
+    word2 = item[0]
+    vec2 = Embed(word2)
+    cosDis = consineSimilarity(vec1, vec2)
+    result.append((word2, vec2, cosDis))
+  result = sorted(result, key=lambda x: x[2], reverse=True)
+  return result[:10]
+
+testWord = 'học'
+testSW = SimilarWith(testWord)
+print('Most similar with', testWord, ':')
+for e in testSW:
+  print(e[0], ', point:', e[2])
