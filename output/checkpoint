@@ -1,0 +1,2 @@
+model_checkpoint_path: "language_model_cbow_weight_en.ckpt"
+all_model_checkpoint_paths: "language_model_cbow_weight_en.ckpt"
